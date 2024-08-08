@@ -71,15 +71,34 @@ share_size <- 100
 accumulated_shares <- 0
 
 for (i in 1:nrow(amd_df)) {
-# Fill your code here
+
+current_price <- amd_df$close[i]
+
+ if (previous_price == 0 || current_price < previous_price) {
+ amd_df$trade_type[i] <- 'buy'
+ amd_df$costs_proceeds[i] <- -current_price * share_size
+ accumulated_shares <- accumulated_shares + share_size
+ }
+
+ if (i == nrow(amd_df)) {
+ amd_df$trade_type[i] <- 'sell'
+ amd_df$costs_proceeds[i] <- accumulated_shares * current_price
+ }
+ previous_price <- current_price
+ amd_df$accumulated_shares[i] <- accumulated_shares
+
 }
+
 ```
 
 
 ### Step 3: Customize Trading Period
 - Define a trading period you wanted in the past five years 
 ```r
-# Fill your code here
+start_date <- as.Date("2023-01-01")
+end_date <- as.Date("2024-05-17")
+amd_df <- subset(amd_df, date >= start_date & date <= end_date)
+
 ```
 
 
@@ -91,7 +110,19 @@ After running your algorithm, check if the trades were executed as expected. Cal
 - ROI Formula: $$\text{ROI} = \left( \frac{\text{Total Profit or Loss}}{\text{Total Capital Invested}} \right) \times 100$$
 
 ```r
-# Fill your code here
+# Calculating profit/loss
+total_pnl <- sum(amd_df$costs_proceeds, na.rm = TRUE)
+# Calculating the total amount invested
+total_invested <- -sum(amd_df$costs_proceeds[amd_df$trade_type == 'buy'], na.rm = TRUE)
+# ROI
+roi <- (total_pnl / total_invested) * 100
+sprintf("Total Profit/Loss: $%.2f", total_pnl)
+## [1] "Total Profit/Loss: $8164779.07"
+sprintf("Total Capital Invested: $%.2f", total_invested)
+## [1] "Total Capital Invested: $1999466.99"
+sprintf("Return on Investments: %.2f%%", roi)
+## [1] "Return on Investments: 408.35%"
+
 ```
 
 ### Step 5: Profit-Taking Strategy or Stop-Loss Mechanisum (Choose 1)
@@ -100,7 +131,30 @@ After running your algorithm, check if the trades were executed as expected. Cal
 
 
 ```r
-# Fill your code here
+# Option 1:
+profit_threshold <- 0.2
+# Initialise columns for average purchase price and profit-taking
+amd_df$avg_purchase_price <- NA
+amd_df$action <- NA
+avg_purchase_price <- 0
+shares_held <- 0
+for (i in 1:nrow(amd_df)) {
+ if (!is.na(amd_df$trade_type[i]) && amd_df$trade_type[i] == 'buy') {
+ total_cost <- shares_held * avg_purchase_price + share_size * amd_df$close[i]
+ shares_held <- shares_held + share_size
+ avg_purchase_price <- total_cost / shares_held
+ }
+
+ if (shares_held > 0 && (amd_df$close[i] >= avg_purchase_price * (1 + profit_threshold))) {
+ amd_df$action[i] <- 'sell half'
+ amd_df$costs_proceeds[i] <- (shares_held / 2) * amd_df$close[i]
+ shares_held <- shares_held / 2
+ }
+
+ amd_df$avg_purchase_price[i] <- avg_purchase_price
+ amd_df$accumulated_shares[i] <- shares_held
+}
+
 ```
 
 
@@ -111,9 +165,21 @@ After running your algorithm, check if the trades were executed as expected. Cal
 
 ```r
 # Fill your code here and Disucss
+# Calculating profit/loss
+total_pnl <- sum(amd_df$costs_proceeds, na.rm = TRUE)
+# Calculating the total amount invested
+total_invested <- -sum(amd_df$costs_proceeds[amd_df$trade_type == 'buy'], na.rm = TRUE)
+# ROI
+roi <- (total_pnl / total_invested) * 100
+sprintf("Total Profit/Loss: $%.2f", total_pnl)
+## [1] "Total Profit/Loss: $10092816.84"
+sprintf("Total Capital Invested: $%.2f", total_invested)
+## [1] "Total Capital Invested: $1862989.96"
+sprintf("Return on Investments: %.2f%%", roi)
+## [1] "Return on Investments: 541.75%"
 ```
 
-Sample Discussion: On Wednesday, December 6, 2023, AMD CEO Lisa Su discussed a new graphics processor designed for AI servers, with Microsoft and Meta as committed users. The rise in AMD shares on the following Thursday suggests that investors believe in the chipmaker's upward potential and market expectations; My first strategy earned X dollars more than second strategy on this day, therefore providing a better ROI.
+Discussion: In the 2023-01-01 to 2024-05-17 period, the profit-taking strategy had managed to consistently outperform trading without a specific strategy (with a 542% ROI vs a 408% ROI). This success can be  attributed to the fact that we are able to sell shares when there is a price increase of 20%, allowing us to secure early profits and reducing our risk by minimising our exposure to potential downside. We can see this as AMD’s earnings declined due to weakness in the PC market, where sales dropped by nearly 15% during 2023. As AMD is a major supplier of PC components, this market event was reflected in the bearish price action during the second and third quarters of that year, dropping nearly 18% . Consequently, the profit-taking strategy allowed us to exit out of positions where we could see the potential decline in our shares, and instead secure the profits whilst also minimised our exposure to risk.
 
 
 
